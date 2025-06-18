@@ -48,6 +48,7 @@ class Person {
         else {
             this.balance += transaction.amount;
         }
+        this.balance = Math.round(this.balance * 100) / 100;
     }
 }
 class Transaction {
@@ -59,27 +60,37 @@ class Transaction {
         this.amount = Number(amount);
     }
 }
-let fullAccount = new Accounts();
-fs.readFile('Transactions2014.csv', 'utf8', (err, data) => {
-    if (err) {
-        console.error(err);
-        return;
-    }
-    processData(data);
-});
+function loadFile(path) {
+    fs.readFile(path, 'utf8', (err, data) => {
+        if (err) {
+            console.error(err);
+            return;
+        }
+        console.log(data);
+        let fullAccount = processData(data);
+        userInteraction(fullAccount);
+    });
+}
 function processData(textData) {
+    let output = new Accounts();
     let lines = textData.split(/\r?\n/);
     lines.splice(0, 1);
     for (let line of lines) {
         let parts = line.split(',');
-        fullAccount.addTransaction(parts[0], parts[1], parts[2], parts[3], parts[4]);
+        if (parts.length < 5) {
+            continue;
+        }
+        output.addTransaction(parts[0], parts[1], parts[2], parts[3], parts[4]);
     }
-    console.log(fullAccount);
+    return output;
 }
-let userInput = readlineSync.question('What would you like to do? ');
-if (userInput === "List All") {
-    for (let s of fullAccount.listAll()) {
-        console.log(s);
+function userInteraction(fullAccount) {
+    let userInput = readlineSync.question('What would you like to do? ');
+    if (userInput == "List All") {
+        for (let s of fullAccount.listAll()) {
+            console.log(s);
+        }
     }
 }
+loadFile('Transactions2014.csv');
 //# sourceMappingURL=index.js.map
