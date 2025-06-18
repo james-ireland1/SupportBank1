@@ -1,5 +1,6 @@
 "use strict";
 const fs = require('node:fs');
+var readlineSync = require('readline-sync');
 class Accounts {
     constructor() {
         this.people = [];
@@ -24,6 +25,13 @@ class Accounts {
         let transaction = new Transaction(date, personFrom, personTo, narrative, amount);
         personFrom.addTransaction(transaction);
         personTo.addTransaction(transaction);
+    }
+    listAll() {
+        let output = [];
+        for (let person of this.people) {
+            output.push(person.name + ": " + person.balance);
+        }
+        return output;
     }
 }
 class Person {
@@ -67,5 +75,11 @@ function processData(textData) {
         fullAccount.addTransaction(parts[0], parts[1], parts[2], parts[3], parts[4]);
     }
     console.log(fullAccount);
+}
+let userInput = readlineSync.question('What would you like to do? ');
+if (userInput === "List All") {
+    for (let s of fullAccount.listAll()) {
+        console.log(s);
+    }
 }
 //# sourceMappingURL=index.js.map

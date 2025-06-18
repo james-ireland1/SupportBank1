@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+var readlineSync = require('readline-sync');
 
 class Accounts {
     people: Person[];
@@ -25,6 +26,13 @@ class Accounts {
         let transaction: Transaction = new Transaction(date, personFrom, personTo, narrative, amount);
         personFrom.addTransaction(transaction);
         personTo.addTransaction(transaction);
+    }
+    listAll() {
+        let output: string[] = [];
+        for (let person of this.people) {
+            output.push(person.name + ": " + person.balance);
+        }
+        return output;
     }
 }
 
@@ -80,4 +88,11 @@ function processData(textData: string) {
         fullAccount.addTransaction(parts[0],parts[1],parts[2],parts[3],parts[4]);
     }
     console.log(fullAccount);
+}
+
+
+
+let userInput: string = readlineSync.question('What would you like to do? ');
+if (userInput === "List All") {
+    for (let s of fullAccount.listAll()) {console.log(s)}
 }
