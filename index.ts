@@ -20,6 +20,11 @@ class Accounts { //a list of records for every person and every transaction
         this.people = [];
         this.transactions = [];
     }
+    loadData(data: string, filetype: string) {
+        if (filetype === 'csv') {this.loadCsv(data)}
+        else if (filetype === 'json') {this.loadJson(data)}
+        return this;
+    }
     loadCsv(data: string) { //take raw text from a csv file and process the transactions
         let lines: string[] = data.split(/\r?\n/);
         logger.debug('Split data into '+lines.length+' part(s)');
@@ -28,6 +33,14 @@ class Accounts { //a list of records for every person and every transaction
             let parts: string[] = line.split(',');
             if (parts.length < 5) {continue;}
             this.addTransaction(parts[0],parts[1],parts[2],parts[3],parts[4]);
+        }
+        return this;
+    }
+    loadJson(data: string) {
+        let parsedData = JSON.parse(data);
+        logger.debug(`Loading JSON. ${parsedData.length} entries found`);
+        for (let entry of parsedData) {
+            this.addTransaction(entry.Date, entry.FromAccount, entry.ToAccount, entry.Narrative, entry.Amount);
         }
         return this;
     }
@@ -125,6 +138,13 @@ function loadFileSync(path: string) {
     return data;
 }
 
+function loadAndMergeFile(filename: string, accounts: Accounts) {
+    const parts: string[] = filename.split('.');
+    const filetype: string = parts[parts.length-1];
+    const data: string = loadFileSync(filename);
+    accounts.loadData(data, filetype);
+}
+
 function userInteraction(fullAccount: Accounts) {
     let userInput: string = readlineSync.question('What would you like to do? ');
     logger.debug(`User asked to ${userInput}`);
@@ -132,8 +152,15 @@ function userInteraction(fullAccount: Accounts) {
         logger.debug('Listing balances for all people');
         for (let s of fullAccount.listAllPeople()) {console.log(s)}
     } else if (userInput.slice(0,5) == 'List ') {
-        logger.debug(`Listing transactions for ${userInput.slice(5,userInput.length)}`);
-        for (let s of fullAccount.listTransactions(userInput.slice(5,userInput.length))) {console.log(s)}
+        const name: string = userInput.slice(5, userInput.length);
+        logger.debug(`Listing transactions for ${name}`);
+        for (let s of fullAccount.listTransactions(name)) {
+            console.log(s)
+        }
+    } else if (userInput.slice(0,12) == 'Import File ') {
+        const filename: string = userInput.slice(12,userInput.length);
+        logger.debug(`Importing content from ${filename}`);
+        loadAndMergeFile(filename, fullAccount);
     } else {
         logger.debug('Ending program');
         return false;
@@ -144,7 +171,7 @@ function userInteraction(fullAccount: Accounts) {
 
 logger.info('Program launched');
 
-const data: string = loadFileSync('DodgyTransactions2015.csv');
+
 let fullAccount: Accounts = new Accounts();
-fullAccount.loadCsv(data);
+
 while (userInteraction(fullAccount)) {}
