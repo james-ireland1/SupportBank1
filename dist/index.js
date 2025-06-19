@@ -4,6 +4,19 @@ var readlineSync = require('readline-sync');
 class Accounts {
     constructor() {
         this.people = [];
+        this.transactions = [];
+    }
+    loadCsv(data) {
+        let lines = data.split(/\r?\n/);
+        lines.splice(0, 1); //remove the first row
+        for (let line of lines) {
+            let parts = line.split(',');
+            if (parts.length < 5) {
+                continue;
+            }
+            this.addTransaction(parts[0], parts[1], parts[2], parts[3], parts[4]);
+        }
+        return this;
     }
     addPerson(name) {
         this.people.push(new Person(name));
@@ -25,11 +38,25 @@ class Accounts {
         let transaction = new Transaction(date, personFrom, personTo, narrative, amount);
         personFrom.addTransaction(transaction);
         personTo.addTransaction(transaction);
+        this.transactions.push(transaction);
     }
-    listAll() {
+    listAllPeople() {
         let output = [];
         for (let person of this.people) {
             output.push(person.name + ": " + person.balance);
+        }
+        return output;
+    }
+    listTransactions(name) {
+        let person;
+        person = this.getPerson(name);
+        let output = [];
+        output.push('Displaying transactions for ' + person.name);
+        if (person.transactions.length < 1) {
+            output.push('No transactions found.');
+        }
+        for (let t of person.transactions) {
+            output.push(t.date + ' ' + t.personFrom.name + ' paid ' + t.personTo.name + ' ' + t.amount + ' for ' + t.narrative);
         }
         return output;
     }
@@ -67,30 +94,36 @@ function loadFile(path) {
             return;
         }
         console.log(data);
-        let fullAccount = processData(data);
-        userInteraction(fullAccount);
+        let fullAccount = new Accounts();
+        fullAccount.loadCsv(data);
+        while (userInteraction(fullAccount)) {
+        }
     });
 }
-function processData(textData) {
-    let output = new Accounts();
-    let lines = textData.split(/\r?\n/);
-    lines.splice(0, 1);
-    for (let line of lines) {
-        let parts = line.split(',');
-        if (parts.length < 5) {
-            continue;
-        }
-        output.addTransaction(parts[0], parts[1], parts[2], parts[3], parts[4]);
-    }
-    return output;
+function loadFileSync(path) {
+    const data = fs.readFileSync(path, 'utf-8');
+    return data;
 }
 function userInteraction(fullAccount) {
     let userInput = readlineSync.question('What would you like to do? ');
     if (userInput == "List All") {
-        for (let s of fullAccount.listAll()) {
+        for (let s of fullAccount.listAllPeople()) {
             console.log(s);
         }
     }
+    else if (userInput.slice(0, 5) == 'List ') {
+        for (let s of fullAccount.listTransactions(userInput.slice(5, userInput.length))) {
+            console.log(s);
+        }
+    }
+    else {
+        return false;
+    }
+    return true;
 }
-loadFile('Transactions2014.csv');
+//loadFile('Transactions2014.csv');
+const data = loadFileSync('Transactions2014.csv');
+let fullAccount = new Accounts();
+fullAccount.loadCsv(data);
+while (userInteraction(fullAccount)) { }
 //# sourceMappingURL=index.js.map
