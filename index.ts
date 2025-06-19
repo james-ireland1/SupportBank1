@@ -1,5 +1,17 @@
 const fs = require('node:fs');
-var readlineSync = require('readline-sync');
+const readlineSync = require('readline-sync');
+const log4js = require('log4js');
+
+log4js.configure({
+    appenders: {
+        file: { type: 'fileSync', filename: 'logs/debug.log' }
+    },
+    categories: {
+        default: { appenders: ['file'], level: 'debug'}
+    }
+});
+
+const logger = log4js.getLogger();
 
 class Accounts { //a list of records for every person and every transaction
     people: Person[];
@@ -10,6 +22,7 @@ class Accounts { //a list of records for every person and every transaction
     }
     loadCsv(data: string) { //take raw text from a csv file and process the transactions
         let lines: string[] = data.split(/\r?\n/);
+        logger.debug('Split data into '+lines.length+' part(s)');
         lines.splice(0,1); //remove the first row
         for (let line of lines) {
             let parts: string[] = line.split(',');
@@ -19,6 +32,7 @@ class Accounts { //a list of records for every person and every transaction
         return this;
     }
     addPerson(name: string) { //create a record for a person with the name given
+        logger.debug('Creating person: '+name);
         this.people.push(new Person(name));
         return this.people[this.people.length-1];
     }
@@ -31,14 +45,18 @@ class Accounts { //a list of records for every person and every transaction
         return this.addPerson(name);
     }
     addTransaction(date: string, nameFrom: string, nameTo: string, narrative: string, amount: string) { //take the raw text for a transaction and associate it with the relevant people
+        logger.debug(`Adding new transaction: ${date} from: ${nameFrom} to: ${nameTo} ${amount} for ${narrative}`);
         let personFrom: Person;
         personFrom = this.getPerson(nameFrom);
         let personTo: Person;
         personTo = this.getPerson(nameTo);
         let transaction: Transaction = new Transaction(date, personFrom, personTo, narrative, amount);
-        personFrom.addTransaction(transaction);
-        personTo.addTransaction(transaction);
-        this.transactions.push(transaction);
+        if (transaction.isValid()) {
+            personFrom.addTransaction(transaction);
+            personTo.addTransaction(transaction);
+            this.transactions.push(transaction);
+            logger.debug('Successfully added');
+        } else {logger.debug('Transaction skipped')}
     }
     listAllPeople() { //output the list of people's names matched to their balance
         let output: string[] = [];
@@ -93,41 +111,40 @@ class Transaction {
         this.narrative = narrative;
         this.amount = Number(amount);
     }
-}
-
-function loadFile(path: string) { // I wrote this before Martin told me readFileSync existed. No longer used
-    fs.readFile(path, 'utf8', (err: any, data: string) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
-        console.log(data);
-        let fullAccount: Accounts = new Accounts();
-        fullAccount.loadCsv(data);
-        while (userInteraction(fullAccount)) {
-        }
-    });
+    isValid() {
+        if (isNaN(this.amount)) {
+            logger.error('Amount is NaN');
+            return false
+        } else {return true}
+    }
 }
 
 function loadFileSync(path: string) {
     const data: string = fs.readFileSync(path, 'utf-8');
+    logger.debug('Read data from '+path);
     return data;
 }
 
 function userInteraction(fullAccount: Accounts) {
     let userInput: string = readlineSync.question('What would you like to do? ');
+    logger.debug(`User asked to ${userInput}`);
     if (userInput == "List All") {
+        logger.debug('Listing balances for all people');
         for (let s of fullAccount.listAllPeople()) {console.log(s)}
     } else if (userInput.slice(0,5) == 'List ') {
+        logger.debug(`Listing transactions for ${userInput.slice(5,userInput.length)}`);
         for (let s of fullAccount.listTransactions(userInput.slice(5,userInput.length))) {console.log(s)}
     } else {
+        logger.debug('Ending program');
         return false;
     }
     return true;
 }
 
-//loadFile('Transactions2014.csv');
-const data: string = loadFileSync('Transactions2014.csv');
+
+logger.info('Program launched');
+
+const data: string = loadFileSync('DodgyTransactions2015.csv');
 let fullAccount: Accounts = new Accounts();
 fullAccount.loadCsv(data);
 while (userInteraction(fullAccount)) {}
